@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 from db import init_db, get_random
 
-VIEWER_TOKEN = 'ТВОЙ_ТОКЕН_ВЬЮЕРА'
+VIEWER_TOKEN = os.environ.get("LVIEWER_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("🎲 Мотивация", callback_data='random')]]

@@ -3,8 +3,8 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 from db import init_db, save_file_id
 
-LOADER_TOKEN = 'ТВОЙ_ТОКЕН_ЗАГРУЗЧИКА'
-CHANNEL_ID = -1002576049448
+LOADER_TOKEN = os.environ.get("LOADER_TOKEN")  # Читаем токен из окружения
+CHANNEL_ID = os.environ.get("CHANNEL_ID")      # Аналогично для ID канала
 
 def download_media(url):
     ydl_opts = {'outtmpl': 'temp.%(ext)s', 'quiet': True, 'format': 'mp4'}
