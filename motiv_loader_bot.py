@@ -1,3 +1,4 @@
+import os  # Добавьте это в самое начало файла!
 import yt_dlp
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
