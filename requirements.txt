@@ -1,3 +1,2 @@
-#!/bin/bash
-python3 motiv_loader_bot.py &
-python3 motiv_random_bot.py
+python-telegram-bot==20.3
+yt-dlp==2024.6.8
