@@ -12,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 DB_PATH = "motiv.db"
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+LOADER_TOKEN = os.environ.get("LOADER_TOKEN")
 
 def get_random_file():
     conn = sqlite3.connect(DB_PATH)
