@@ -5,7 +5,7 @@ import logging
 import asyncio
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
-from db import init_db, save_file_id
+from db import init_db, save_file_id, delete_file_id, check_message_exists
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -25,15 +25,14 @@ def download_media(url: str) -> list:
         "cookiefile": "cookies.txt",
         "format": "best",
         "ffmpeg_location": "/usr/bin/ffmpeg",
+        "extractor_args": {"instagram": {"carousel": True}},
         "nooverwrites": True,
         "nocheckcertificate": True,
-        "cachedir": False,
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            if "entries" in info:
-                logger.info(f"Обработка карусели из {len(info['entries'])} элементов.")
+            if "entries" in info:  # Обработка каруселей
                 return [ydl.prepare_filename(entry) for entry in info["entries"]]
             return [ydl.prepare_filename(info)]
     except Exception as e:
@@ -65,9 +64,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         messages = await context.bot.send_media_group(CHANNEL_ID, media=media_group)
         for msg in messages:
             if msg.photo:
-                save_file_id(msg.photo[-1].file_id, "photo", text)
+                save_file_id(msg.photo[-1].file_id, "photo", text, msg.message_id)
             elif msg.video:
-                save_file_id(msg.video.file_id, "video", text)
+                save_file_id(msg.video.file_id, "video", text, msg.message_id)
         await update.message.reply_text("✅ Загружено и сохранено!")
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
@@ -76,22 +75,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if os.path.exists(path):
                 os.remove(path)
 
-async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.channel_post:
-        post = update.channel_post
-        if post.photo:
-            file_id = post.photo[-1].file_id
-            save_file_id(file_id, "photo", "manual_upload")
-            logger.info(f"Сохранено фото из канала: {file_id}")
-        elif post.video:
-            file_id = post.video.file_id
-            save_file_id(file_id, "video", "manual_upload")
-            logger.info(f"Сохранено видео из канала: {file_id}")
+async def handle_channel_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Удаление из базы при удалении сообщения в канале
+    if update.edited_message or update.deleted_message:
+        message_id = update.deleted_message.message_id if update.deleted_message else update.edited_message.message_id
+        if not check_message_exists(message_id):
+            return
+        delete_file_id(message_id)
+        logger.info(f"Удален контент с message_id: {message_id}")
 
 def run_loader():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     app = ApplicationBuilder().token(LOADER_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
+    app.add_handler(MessageHandler(filters.ChatType.CHANNEL & (filters.UpdateType.EDITED | filters.UpdateType.DELETED), handle_channel_update))
     app.run_polling()

@@ -8,21 +8,27 @@ def init_db():
             CREATE TABLE IF NOT EXISTS media (
                 file_id TEXT PRIMARY KEY,
                 type TEXT,
-                url TEXT
+                url TEXT,
+                message_id INTEGER  # Добавлено для синхронизации с каналом
             )
         """)
         conn.commit()
 
-def save_file_id(file_id: str, file_type: str, url: str = None):
+def save_file_id(file_id: str, file_type: str, url: str = None, message_id: int = None):
     with sqlite3.connect(DB_NAME) as conn:
         try:
             conn.execute(
-                "INSERT INTO media (file_id, type, url) VALUES (?, ?, ?)",
-                (file_id, file_type, url)
+                "INSERT INTO media (file_id, type, url, message_id) VALUES (?, ?, ?, ?)",
+                (file_id, file_type, url, message_id)
             )
             conn.commit()
         except sqlite3.IntegrityError:
             pass
+
+def delete_file_id(file_id: str):
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute("DELETE FROM media WHERE file_id = ?", (file_id,))
+        conn.commit()
 
 def load_random() -> dict:
     with sqlite3.connect(DB_NAME) as conn:
@@ -33,3 +39,8 @@ def load_random() -> dict:
         """)
         row = cursor.fetchone()
         return {"file_id": row[0], "type": row[1]} if row else None
+
+def check_message_exists(message_id: int) -> bool:
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.execute("SELECT 1 FROM media WHERE message_id = ?", (message_id,))
+        return cursor.fetchone() is not None
