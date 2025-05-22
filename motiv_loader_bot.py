@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 LOADER_TOKEN = os.environ.get("LOADER_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")
 
-app_loader = ApplicationBuilder().token(LOADER_TOKEN).build()
+init_db()  # <-- перемещено наверх
+app = ApplicationBuilder().token(LOADER_TOKEN).build()  # <-- вынесено из if
 
 def download_media(url):
     unique_id = uuid.uuid4().hex
@@ -82,5 +83,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if path and os.path.exists(path):
             os.remove(path)
 
-init_db()
-app_loader.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))  # <-- добавлено вне if
+
+if __name__ == "__main__":
+    logger.info("🚀 motiv_loader_bot запущен")
+    app.run_polling()
