@@ -9,7 +9,7 @@ def init_db():
                 file_id TEXT PRIMARY KEY,
                 type TEXT,
                 url TEXT,
-                message_id INTEGER  # Добавлено для синхронизации с каналом
+                message_id INTEGER
             )
         """)
         conn.commit()
