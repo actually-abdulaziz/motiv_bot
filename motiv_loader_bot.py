@@ -22,12 +22,25 @@ def download_media(url):
         "outtmpl": output_template,
         "quiet": True,
         "format": "best",
-        "cookiefile": "cookies.txt",  # ⚠️ Создайте этот файл (инструкция ниже)
+        "cookiefile": "cookies.txt",
         "extractor_args": {"instagram": {"format": "best"}},
+        "nooverwrites": True,
+        "nocheckcertificate": True,
+        "cachedir": False,
     }
+
+    logger.info(f"📥 Скачиваю ссылку: {url}")
+    logger.info(f"💾 Файл сохраняется как: {output_template}")
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
+
+            # Обработка карусели (если несколько файлов)
+            if 'entries' in info:
+                info = info['entries'][0]
+
+            logger.info(f"✅ Получен файл: {info['webpage_url']}")
             return ydl.prepare_filename(info)
     except Exception as e:
         logger.error(f"Ошибка скачивания: {e}")
