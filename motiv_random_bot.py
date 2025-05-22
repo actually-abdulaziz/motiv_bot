@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 DB_PATH = "motiv.db"
 VIEWER_TOKEN = os.environ.get("VIEWER_TOKEN")
 
+app_random = ApplicationBuilder().token(VIEWER_TOKEN).build()
+
 def get_random_file():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -43,9 +45,5 @@ async def motivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка при отправке файла: {e}")
         await update.message.reply_text("❌ Не удалось отправить файл.")
 
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(VIEWER_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("motivate", motivate))
-    logger.info("🚀 motiv_random_bot запущен")
-    app.run_polling()
+app_random.add_handler(CommandHandler("start", start))
+app_random.add_handler(CommandHandler("motivate", motivate))

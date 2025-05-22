@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 LOADER_TOKEN = os.environ.get("LOADER_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")
 
+app_loader = ApplicationBuilder().token(LOADER_TOKEN).build()
+
 def download_media(url):
     unique_id = uuid.uuid4().hex
     output_template = f"temp_{unique_id}.%(ext)s"
@@ -35,11 +37,8 @@ def download_media(url):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-
-            # Обработка карусели (если несколько файлов)
             if 'entries' in info:
                 info = info['entries'][0]
-
             logger.info(f"✅ Получен файл: {info['webpage_url']}")
             return ydl.prepare_filename(info)
     except Exception as e:
@@ -83,9 +82,5 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if path and os.path.exists(path):
             os.remove(path)
 
-if __name__ == "__main__":
-    init_db()
-    app = ApplicationBuilder().token(LOADER_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    logger.info("🚀 motiv_loader_bot запущен")
-    app.run_polling()
+init_db()
+app_loader.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
