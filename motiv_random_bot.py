@@ -12,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 DB_PATH = "motiv.db"
-LOADER_TOKEN = os.environ.get("LOADER_TOKEN")
+VIEWER_TOKEN = os.environ.get("VIEWER_TOKEN")
 
 def get_random_file():
     conn = sqlite3.connect(DB_PATH)
@@ -44,7 +44,7 @@ async def motivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Не удалось отправить файл.")
 
 if __name__ == "__main__":
-    app = ApplicationBuilder().token(LOADER_TOKEN).build()
+    app = ApplicationBuilder().token(VIEWER_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("motivate", motivate))
     logger.info("🚀 motiv_random_bot запущен")
