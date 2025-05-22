@@ -24,7 +24,8 @@ def download_media(url: str) -> list:
         "outtmpl": f"temp_{unique_id}/%(title)s.%(ext)s",
         "quiet": True,
         "cookiefile": "cookies.txt",
-        "extractor_args": {"instagram": {"format": "best"}},
+        "format": "bestvideo+bestaudio/best",
+        "ffmpeg_location": os.environ.get("FFMPEG_PATH", "ffmpeg"),
         "nooverwrites": True,
         "nocheckcertificate": True,
         "cachedir": False,
@@ -34,7 +35,7 @@ def download_media(url: str) -> list:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             if "entries" in info:
-                logger.info(f"Найдена карусель из {len(info['entries'])} элементов.")
+                logger.info(f"Обработка карусели из {len(info['entries'])} элементов.")
                 return [ydl.prepare_filename(entry) for entry in info["entries"]]
             return [ydl.prepare_filename(info)]
     except Exception as e:
@@ -78,10 +79,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if os.path.exists(path):
                 os.remove(path)
 
+async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.channel_post:
+        if update.channel_post.photo:
+            file_id = update.channel_post.photo[-1].file_id
+            save_file_id(file_id, "photo")
+            logger.info(f"Сохранено фото из канала: {file_id}")
+        elif update.channel_post.video:
+            file_id = update.channel_post.video.file_id
+            save_file_id(file_id, "video")
+            logger.info(f"Сохранено видео из канала: {file_id}")
+
 def run_loader():
-    # Явное создание event loop для процесса
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     app = ApplicationBuilder().token(LOADER_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(filters.CHANNEL, handle_channel_post))
     app.run_polling()

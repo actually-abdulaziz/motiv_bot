@@ -8,12 +8,12 @@ def init_db():
             CREATE TABLE IF NOT EXISTS media (
                 file_id TEXT PRIMARY KEY,
                 type TEXT,
-                url TEXT UNIQUE
+                url TEXT  -- NULL для ручных загрузок
             )
         """)
         conn.commit()
 
-def save_file_id(file_id: str, file_type: str, url: str):
+def save_file_id(file_id: str, file_type: str, url: str = None):
     with sqlite3.connect(DB_NAME) as conn:
         try:
             conn.execute(
