@@ -43,7 +43,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def run_viewer():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    app = ApplicationBuilder().token(VIEWER_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.run_polling()
+    try:
+        app = ApplicationBuilder().token(VIEWER_TOKEN).build()
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CallbackQueryHandler(button_handler))
+        app.run_polling()
+    finally:
+        loop.close()
