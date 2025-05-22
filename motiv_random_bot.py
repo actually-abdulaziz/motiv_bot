@@ -41,7 +41,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠️ Не удалось загрузить контент.")
 
 def run_viewer():
-    # Создаем новый event loop для потока
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     app = ApplicationBuilder().token(VIEWER_TOKEN).build()

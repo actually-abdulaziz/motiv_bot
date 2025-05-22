@@ -15,7 +15,13 @@ logger = logging.getLogger(__name__)
 
 LOADER_TOKEN = os.environ.get("LOADER_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")
-
+if CHANNEL_ID:
+    try:
+        CHANNEL_ID = int(CHANNEL_ID)
+    except Exception as e:
+        logger.error("CHANNEL_ID должен быть числом, например, -1002576049448")
+        
+# Инициализируем базу (файл ids.db будет создан автоматически)
 init_db()
 
 def download_media(url: str) -> list:
@@ -23,7 +29,7 @@ def download_media(url: str) -> list:
     ydl_opts = {
         "outtmpl": f"temp_{unique_id}/%(title)s.%(ext)s",
         "quiet": True,
-        "cookiefile": "cookies.txt",
+        "cookiefile": "cookies.txt",      # Убедись, что файл существует или убери эту опцию
         "extractor_args": {"instagram": {"format": "best"}},
         "nooverwrites": True,
         "nocheckcertificate": True,
@@ -66,6 +72,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         messages = await context.bot.send_media_group(CHANNEL_ID, media=media_group)
         for msg in messages:
             if msg.photo:
+                # Берем последний элемент, т.к. там самые качественные размеры
                 save_file_id(msg.photo[-1].file_id, "photo", text)
             elif msg.video:
                 save_file_id(msg.video.file_id, "video", text)
@@ -78,7 +85,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 os.remove(path)
 
 def run_loader():
-    # Создаем новый event loop для потока
+    # Создаем новый event loop для этого потока и устанавливаем его
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     app = ApplicationBuilder().token(LOADER_TOKEN).build()
