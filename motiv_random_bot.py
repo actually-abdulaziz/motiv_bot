@@ -2,7 +2,12 @@ import os
 import logging
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes
+)
 from db import init_db, load_random
 
 logging.basicConfig(
@@ -25,10 +30,11 @@ async def send_random_content(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
     content = load_random()
+    
     if not content:
         await query.message.reply_text("😔 В базе пока нет контента.")
         return
-
+    
     try:
         if content["type"] == "photo":
             await query.message.reply_photo(content["file_id"])

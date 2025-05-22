@@ -4,8 +4,13 @@ import uuid
 import logging
 import asyncio
 from telegram import Update, InputMediaPhoto, InputMediaVideo
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
-from db import init_db, save_file_id, delete_file_id
+from telegram.ext import (
+    ApplicationBuilder,
+    MessageHandler,
+    filters,
+    ContextTypes
+)
+from db import init_db, save_file_id
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -33,7 +38,6 @@ def download_media(url: str) -> list:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             if "entries" in info:
-                logger.info(f"Найдена карусель из {len(info['entries'])} элементов")
                 return [ydl.prepare_filename(entry) for entry in info["entries"]]
             return [ydl.prepare_filename(info)]
     except Exception as e:
@@ -43,19 +47,21 @@ def download_media(url: str) -> list:
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
-
+    
     text = update.message.text
     logger.info(f"Получена ссылка: {text}")
+    
     if "instagram.com" not in text:
         await update.message.reply_text("⚠️ Отправьте ссылку на Instagram.")
         return
-
+    
     await update.message.reply_text("⏬ Скачиваю...")
     paths = download_media(text)
+    
     if not paths:
         await update.message.reply_text("❌ Не удалось скачать контент.")
         return
-
+    
     media_group = []
     for path in paths:
         try:
@@ -67,11 +73,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     media_group.append(InputMediaVideo(file))
         except Exception as e:
             logger.error(f"Ошибка чтения файла {path}: {e}")
-
+    
     if not media_group:
         await update.message.reply_text("❌ Нет подходящих медиафайлов.")
         return
-
+    
     try:
         messages = await context.bot.send_media_group(CHANNEL_ID, media=media_group)
         for msg in messages:
@@ -102,5 +108,5 @@ async def handle_deleted_message(update: Update, context: ContextTypes.DEFAULT_T
 def run_loader():
     app = ApplicationBuilder().token(LOADER_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.ChatType.CHANNEL & filters.MessageType.DELETE, handle_deleted_message))
+    app.add_handler(MessageHandler(filters.ChatType.CHANNEL & filters.UpdateType.MESSAGE, handle_deleted_message))
     app.run_polling()
