@@ -1,1 +1,1 @@
-worker: bash start.sh
+worker: python motiv_loader_bot.py
