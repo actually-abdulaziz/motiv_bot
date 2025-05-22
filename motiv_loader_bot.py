@@ -2,7 +2,7 @@ import os
 import yt_dlp
 import uuid
 import logging
-from telegram import Update
+from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 from db import init_db, save_file_id
 
@@ -32,7 +32,7 @@ def download_media(url: str) -> list:
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            if "entries" in info:  # Обработка карусели
+            if "entries" in info:
                 return [ydl.prepare_filename(entry) for entry in info["entries"]]
             return [ydl.prepare_filename(info)]
     except Exception as e:
@@ -76,7 +76,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if os.path.exists(path):
                 os.remove(path)
 
+# Убрано app.run_polling()!
 app = ApplicationBuilder().token(LOADER_TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-logger.info("🚀 motiv_loader_bot запущен")
-app.run_polling()

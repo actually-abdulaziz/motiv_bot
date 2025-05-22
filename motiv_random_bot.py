@@ -39,8 +39,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка: {e}")
         await query.message.reply_text("⚠️ Не удалось загрузить контент.")
 
+# Убрано app.run_polling()!
 app = ApplicationBuilder().token(VIEWER_TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(button_handler))
-logger.info("🎲 motiv_random_bot запущен")
-app.run_polling()
