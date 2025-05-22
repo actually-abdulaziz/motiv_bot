@@ -32,7 +32,7 @@ def download_media(url: str) -> list:
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            if "entries" in info:  # Обработка каруселей
+            if "entries" in info:
                 return [ydl.prepare_filename(entry) for entry in info["entries"]]
             return [ydl.prepare_filename(info)]
     except Exception as e:
@@ -76,7 +76,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 os.remove(path)
 
 async def handle_channel_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Для удаленных сообщений
     if update.message and update.message.delete_chat_photo:
         file_id = update.message.photo[-1].file_id if update.message.photo else None
         if file_id and check_message_exists(file_id):
@@ -86,10 +85,11 @@ async def handle_channel_update(update: Update, context: ContextTypes.DEFAULT_TY
 def run_loader():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    app = ApplicationBuilder().token(LOADER_TOKEN).build()
+    app = ApplicationBuilder().token(LOADER_TOKEN).build()  # Создаем app здесь
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    from telegram.ext import filters
-app.add_handler(MessageHandler(
-    filters.ChatType.CHANNEL & (filters.UpdateType.MESSAGE & (filters.MessageType.DELETE | filters.MessageType.EDIT)), 
-    handle_channel_update
-))
+    app.add_handler(MessageHandler(
+        filters.ChatType.CHANNEL & filters.UpdateType.MESSAGE & 
+        (filters.MessageType.DELETE | filters.MessageType.EDIT), 
+        handle_channel_update
+    ))
+    app.run_polling()
