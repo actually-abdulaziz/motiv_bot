@@ -1,39 +1,35 @@
 import sqlite3
 
-DB_PATH = "ids.db"
+DB_NAME = "ids.db"
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS content (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_id TEXT NOT NULL,
-            type TEXT NOT NULL,
-            url TEXT NOT NULL UNIQUE
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-def save_file_id(file_id, file_type, url):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    try:
-        cur.execute(
-            "INSERT INTO content (file_id, type, url) VALUES (?, ?, ?)",
-            (file_id, file_type, url)
-        )
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS media (
+                file_id TEXT PRIMARY KEY,
+                type TEXT,
+                url TEXT UNIQUE
+            )
+        """)
         conn.commit()
-    except sqlite3.IntegrityError:
-        print("Видео уже существует в базе")
-    finally:
-        conn.close()
 
-def get_random():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT file_id, type FROM content ORDER BY RANDOM() LIMIT 1")
-    row = cur.fetchone()
-    conn.close()
-    return {"file_id": row[0], "type": row[1]} if row else None
+def save_file_id(file_id: str, file_type: str, url: str):
+    with sqlite3.connect(DB_NAME) as conn:
+        try:
+            conn.execute(
+                "INSERT INTO media (file_id, type, url) VALUES (?, ?, ?)",
+                (file_id, file_type, url)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            pass
+
+def load_random() -> dict:
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.execute("""
+            SELECT file_id, type FROM media 
+            ORDER BY RANDOM() 
+            LIMIT 1
+        """)
+        row = cursor.fetchone()
+        return {"file_id": row[0], "type": row[1]} if row else None
