@@ -1,13 +1,14 @@
-import threading
+import multiprocessing
 from motiv_loader_bot import run_loader
 from motiv_random_bot import run_viewer
 
 if __name__ == "__main__":
-    loader_thread = threading.Thread(target=run_loader, name="LoaderThread")
-    viewer_thread = threading.Thread(target=run_viewer, name="ViewerThread")
+    # Запуск ботов в отдельных процессах
+    loader_process = multiprocessing.Process(target=run_loader)
+    viewer_process = multiprocessing.Process(target=run_viewer)
     
-    loader_thread.start()
-    viewer_thread.start()
+    loader_process.start()
+    viewer_process.start()
     
-    loader_thread.join()
-    viewer_thread.join()
+    loader_process.join()
+    viewer_process.join()
