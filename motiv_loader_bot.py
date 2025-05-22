@@ -2,6 +2,7 @@ import os
 import yt_dlp
 import uuid
 import logging
+import asyncio
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 from db import init_db, save_file_id
@@ -76,8 +77,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if os.path.exists(path):
                 os.remove(path)
 
-# Запуск бота через отдельный поток
 def run_loader():
+    # Создаем новый event loop для потока
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     app = ApplicationBuilder().token(LOADER_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.run_polling()
