@@ -76,18 +76,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 os.remove(path)
 
 async def handle_channel_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Удаление из базы при удалении сообщения в канале
-    if update.edited_message or update.deleted_message:
-        message_id = update.deleted_message.message_id if update.deleted_message else update.edited_message.message_id
-        if not check_message_exists(message_id):
-            return
-        delete_file_id(message_id)
-        logger.info(f"Удален контент с message_id: {message_id}")
+    # Для удаленных сообщений
+    if update.message and update.message.delete_chat_photo:
+        file_id = update.message.photo[-1].file_id if update.message.photo else None
+        if file_id and check_message_exists(file_id):
+            delete_file_id(file_id)
+            logger.info(f"Удален контент: {file_id}")
 
 def run_loader():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     app = ApplicationBuilder().token(LOADER_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.ChatType.CHANNEL & (filters.UpdateType.EDITED | filters.UpdateType.DELETED), handle_channel_update))
-    app.run_polling()
+    from telegram.ext import filters
+app.add_handler(MessageHandler(
+    filters.ChatType.CHANNEL & (filters.UpdateType.MESSAGE & (filters.MessageType.DELETE | filters.MessageType.EDIT)), 
+    handle_channel_update
+))

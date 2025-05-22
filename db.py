@@ -40,7 +40,7 @@ def load_random() -> dict:
         row = cursor.fetchone()
         return {"file_id": row[0], "type": row[1]} if row else None
 
-def check_message_exists(message_id: int) -> bool:
+def check_message_exists(file_id: str) -> bool:  # Исправлено: проверка по file_id
     with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.execute("SELECT 1 FROM media WHERE message_id = ?", (message_id,))
+        cursor = conn.execute("SELECT 1 FROM media WHERE file_id = ?", (file_id,))
         return cursor.fetchone() is not None
