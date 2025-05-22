@@ -10,7 +10,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             file_id TEXT NOT NULL,
             type TEXT NOT NULL,
-            url TEXT NOT NULL UNIQUE  # Добавлена привязка к URL
+            url TEXT NOT NULL UNIQUE  -- Используйте двойной дефис для комментариев в SQL
         )
     """)
     conn.commit()
@@ -26,7 +26,7 @@ def save_file_id(file_id, file_type, url):
         )
         conn.commit()
     except sqlite3.IntegrityError:
-        logger.warning("Видео уже существует в базе")
+        print("Видео уже существует в базе")
     finally:
         conn.close()
 
