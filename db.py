@@ -8,7 +8,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS media (
                 file_id TEXT PRIMARY KEY,
                 type TEXT,
-                url TEXT  -- NULL для ручных загрузок
+                url TEXT
             )
         """)
         conn.commit()
@@ -27,8 +27,8 @@ def save_file_id(file_id: str, file_type: str, url: str = None):
 def load_random() -> dict:
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.execute("""
-            SELECT file_id, type FROM media 
-            ORDER BY RANDOM() 
+            SELECT file_id, type FROM media
+            ORDER BY RANDOM()
             LIMIT 1
         """)
         row = cursor.fetchone()

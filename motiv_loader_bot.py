@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 LOADER_TOKEN = os.environ.get("LOADER_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")
-
 init_db()
 
 def download_media(url: str) -> list:
@@ -24,13 +23,12 @@ def download_media(url: str) -> list:
         "outtmpl": f"temp_{unique_id}/%(title)s.%(ext)s",
         "quiet": True,
         "cookiefile": "cookies.txt",
-        "format": "bestvideo+bestaudio/best",
-        "ffmpeg_location": os.environ.get("FFMPEG_PATH", "ffmpeg"),
+        "format": "best",
+        "ffmpeg_location": "/usr/bin/ffmpeg",
         "nooverwrites": True,
         "nocheckcertificate": True,
         "cachedir": False,
     }
-
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -50,7 +48,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("⏬ Скачиваю...")
     paths = download_media(text)
-    
     if not paths:
         await update.message.reply_text("❌ Не удалось скачать контент.")
         return
@@ -81,27 +78,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.channel_post:
-        logger.info(f"Получено сообщение из канала: {update.channel_post}")
-        if update.channel_post.photo:
-            file_id = update.channel_post.photo[-1].file_id
-            save_file_id(file_id, "photo")
-            logger.info(f"Сохранено фото (file_id: {file_id})")
-        elif update.channel_post.video:
-            file_id = update.channel_post.video.file_id
-            save_file_id(file_id, "video")
-            logger.info(f"Сохранено видео (file_id: {file_id})")
+        post = update.channel_post
+        if post.photo:
+            file_id = post.photo[-1].file_id
+            save_file_id(file_id, "photo", "manual_upload")
+            logger.info(f"Сохранено фото из канала: {file_id}")
+        elif post.video:
+            file_id = post.video.file_id
+            save_file_id(file_id, "video", "manual_upload")
+            logger.info(f"Сохранено видео из канала: {file_id}")
 
 def run_loader():
-    logger.info("🚀 Запуск бота-загрузчика...")
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    try:
-        app = ApplicationBuilder().token(LOADER_TOKEN).build()
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-        app.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
-        logger.info("Бот-загрузчик готов к работе.")
-        app.run_polling()
-    except Exception as e:
-        logger.error(f"Ошибка: {e}")
-    finally:
-        loop.close()
+    app = ApplicationBuilder().token(LOADER_TOKEN).build()
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
+    app.run_polling()

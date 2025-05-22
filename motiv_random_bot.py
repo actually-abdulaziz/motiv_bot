@@ -12,7 +12,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 VIEWER_TOKEN = os.environ.get("VIEWER_TOKEN")
-
 init_db()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -25,12 +24,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
     content = load_random()
     if not content:
         await query.message.reply_text("😔 В базе пока нет контента.")
         return
-    
     try:
         if content["type"] == "photo":
             await query.message.reply_photo(content["file_id"])
@@ -41,16 +38,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠️ Не удалось загрузить контент.")
 
 def run_viewer():
-    logger.info("🎲 Запуск бота-мотиватора...")
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    try:
-        app = ApplicationBuilder().token(VIEWER_TOKEN).build()
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CallbackQueryHandler(button_handler))
-        logger.info("Бот-мотиватор готов к работе.")
-        app.run_polling()
-    except Exception as e:
-        logger.error(f"Ошибка: {e}")
-    finally:
-        loop.close()
+    app = ApplicationBuilder().token(VIEWER_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.run_polling()
