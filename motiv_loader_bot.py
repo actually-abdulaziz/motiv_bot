@@ -95,5 +95,5 @@ def run_loader():
     asyncio.set_event_loop(loop)
     app = ApplicationBuilder().token(LOADER_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.CHANNEL, handle_channel_post))
+    app.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
     app.run_polling()
