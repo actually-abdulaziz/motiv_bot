@@ -41,12 +41,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠️ Не удалось загрузить контент.")
 
 def run_viewer():
+    logger.info("🎲 Запуск бота-мотиватора...")
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         app = ApplicationBuilder().token(VIEWER_TOKEN).build()
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CallbackQueryHandler(button_handler))
+        logger.info("Бот-мотиватор готов к работе.")
         app.run_polling()
+    except Exception as e:
+        logger.error(f"Ошибка: {e}")
     finally:
         loop.close()

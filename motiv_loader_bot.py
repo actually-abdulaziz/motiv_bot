@@ -91,12 +91,16 @@ async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.info(f"Сохранено видео из канала: {file_id}")
 
 def run_loader():
+    logger.info("🚀 Запуск бота-загрузчика...")
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         app = ApplicationBuilder().token(LOADER_TOKEN).build()
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         app.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
+        logger.info("Бот-загрузчик готов к работе.")
         app.run_polling()
+    except Exception as e:
+        logger.error(f"Ошибка: {e}")
     finally:
         loop.close()

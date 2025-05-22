@@ -1,10 +1,16 @@
-import subprocess
-import sys
+import multiprocessing
+from motiv_loader_bot import run_loader
+from motiv_random_bot import run_viewer
 
 if __name__ == "__main__":
-    # Запуск ботов в отдельных процессах с изоляцией
-    process_loader = subprocess.Popen([sys.executable, "motiv_loader_bot.py"])
-    process_viewer = subprocess.Popen([sys.executable, "motiv_random_bot.py"])
+    # Явно указываем запуск через spawn (для совместимости)
+    multiprocessing.set_start_method("spawn")
     
-    process_loader.wait()
-    process_viewer.wait()
+    loader_process = multiprocessing.Process(target=run_loader)
+    viewer_process = multiprocessing.Process(target=run_viewer)
+    
+    loader_process.start()
+    viewer_process.start()
+    
+    loader_process.join()
+    viewer_process.join()
