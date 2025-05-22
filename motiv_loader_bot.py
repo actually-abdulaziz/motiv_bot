@@ -5,7 +5,7 @@ import logging
 import asyncio
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
-from db import init_db, save_file_id, delete_file_id, check_message_exists
+from db import init_db, save_file_id, delete_file_id
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -13,8 +13,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-LOADER_TOKEN = os.environ.get("LOADER_TOKEN")
-CHANNEL_ID = os.environ.get("CHANNEL_ID")
+LOADER_TOKEN = os.environ["LOADER_TOKEN"]
+CHANNEL_ID = int(os.environ["CHANNEL_ID"])
 init_db()
 
 def download_media(url: str) -> list:
@@ -33,6 +33,7 @@ def download_media(url: str) -> list:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             if "entries" in info:
+                logger.info(f"Найдена карусель из {len(info['entries'])} элементов")
                 return [ydl.prepare_filename(entry) for entry in info["entries"]]
             return [ydl.prepare_filename(info)]
     except Exception as e:
@@ -40,9 +41,13 @@ def download_media(url: str) -> list:
         return []
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+
     text = update.message.text
+    logger.info(f"Получена ссылка: {text}")
     if "instagram.com" not in text:
-        await update.message.reply_text("⚠️ Это не Instagram-ссылка.")
+        await update.message.reply_text("⚠️ Отправьте ссылку на Instagram.")
         return
 
     await update.message.reply_text("⏬ Скачиваю...")
@@ -53,12 +58,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     media_group = []
     for path in paths:
-        if path.endswith((".jpg", ".jpeg", ".png")):
-            with open(path, "rb") as file:
-                media_group.append(InputMediaPhoto(file))
-        elif path.endswith((".mp4", ".mkv")):
-            with open(path, "rb") as file:
-                media_group.append(InputMediaVideo(file))
+        try:
+            if path.endswith((".jpg", ".jpeg", ".png")):
+                with open(path, "rb") as file:
+                    media_group.append(InputMediaPhoto(file))
+            elif path.endswith((".mp4", ".mkv")):
+                with open(path, "rb") as file:
+                    media_group.append(InputMediaVideo(file))
+        except Exception as e:
+            logger.error(f"Ошибка чтения файла {path}: {e}")
+
+    if not media_group:
+        await update.message.reply_text("❌ Нет подходящих медиафайлов.")
+        return
 
     try:
         messages = await context.bot.send_media_group(CHANNEL_ID, media=media_group)
@@ -67,29 +79,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 save_file_id(msg.photo[-1].file_id, "photo", text, msg.message_id)
             elif msg.video:
                 save_file_id(msg.video.file_id, "video", text, msg.message_id)
-        await update.message.reply_text("✅ Загружено и сохранено!")
+        await update.message.reply_text("✅ Контент загружен в канал!")
     except Exception as e:
-        await update.message.reply_text(f"❌ Ошибка: {e}")
+        logger.error(f"Ошибка отправки в канал: {e}")
+        await update.message.reply_text("❌ Ошибка загрузки.")
     finally:
         for path in paths:
-            if os.path.exists(path):
+            try:
                 os.remove(path)
+            except Exception as e:
+                logger.error(f"Ошибка удаления {path}: {e}")
 
-async def handle_channel_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message and update.message.delete_chat_photo:
-        file_id = update.message.photo[-1].file_id if update.message.photo else None
-        if file_id and check_message_exists(file_id):
-            delete_file_id(file_id)
-            logger.info(f"Удален контент: {file_id}")
+async def handle_deleted_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message and update.message.left_chat_member:
+        message_id = update.message.message_id
+        with sqlite3.connect(DB_NAME) as conn:
+            cursor = conn.execute("SELECT file_id FROM media WHERE message_id = ?", (message_id,))
+            if row := cursor.fetchone():
+                delete_file_id(row[0])
+                logger.info(f"Удален контент с message_id: {message_id}")
 
 def run_loader():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    app = ApplicationBuilder().token(LOADER_TOKEN).build()  # Создаем app здесь
+    app = ApplicationBuilder().token(LOADER_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(
-        filters.ChatType.CHANNEL & filters.UpdateType.MESSAGE & 
-        (filters.MessageType.DELETE | filters.MessageType.EDIT), 
-        handle_channel_update
-    ))
+    app.add_handler(MessageHandler(filters.ChatType.CHANNEL & filters.MessageType.DELETE, handle_deleted_message))
     app.run_polling()
