@@ -10,7 +10,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             file_id TEXT NOT NULL,
             type TEXT NOT NULL,
-            url TEXT NOT NULL UNIQUE  -- Используйте двойной дефис для комментариев в SQL
+            url TEXT NOT NULL UNIQUE
         )
     """)
     conn.commit()
