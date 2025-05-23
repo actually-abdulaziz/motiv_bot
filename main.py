@@ -61,7 +61,7 @@ async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # --- Main ---
-async def main():
+def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -69,9 +69,8 @@ async def main():
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
     logger.info("Bot started")
-    await app.run_polling()
+    app.run_polling()
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
