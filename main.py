@@ -1,36 +1,40 @@
+import asyncio
+from telegram import Bot
+from telegram.constants import ParseMode
+from telegram.ext import Application, CommandHandler
 import os
 import random
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
-from telegram.constants import ParseMode
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")  # Пример: -1002576049448
+CHANNEL_ID = os.getenv("CHANNEL_ID")  # формат: "-100..."
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔁 Отправляю случайный мотивационный пост...")
+application: Application = Application.builder().token(BOT_TOKEN).build()
+bot = Bot(BOT_TOKEN)
 
-    async for message in context.bot.get_chat(CHANNEL_ID).iter_history(limit=None):
-        context.bot_data.setdefault("messages", []).append(message.message_id)
+async def get_random_message_id():
+    updates = await bot.get_chat_history(chat_id=CHANNEL_ID, limit=1)
+    if not updates or not updates[-1].message_id:
+        return None
+    last_id = updates[-1].message_id
+    return random.randint(1, last_id)
 
-    if not context.bot_data["messages"]:
-        await update.message.reply_text("❌ Нет доступных постов в канале.")
-        return
+async def send_random_post(update, context):
+    while True:
+        message_id = await get_random_message_id()
+        if not message_id:
+            await update.message.reply_text("Канал пуст.")
+            return
+        try:
+            await bot.forward_message(chat_id=update.effective_chat.id, from_chat_id=CHANNEL_ID, message_id=message_id)
+            return
+        except:
+            continue  # если сообщение не существует, пробуем другое
 
-    random_id = random.choice(context.bot_data["messages"])
+async def start(update, context):
+    await update.message.reply_text("Жми /motivate чтобы получить пост.")
 
-    await context.bot.forward_message(
-        chat_id=update.effective_chat.id,
-        from_chat_id=CHANNEL_ID,
-        message_id=random_id
-    )
-
-def main():
-    app = Application.builder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-
-    app.run_polling()
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("motivate", send_random_post))
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(application.run_polling())
