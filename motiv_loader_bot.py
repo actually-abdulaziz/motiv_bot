@@ -123,7 +123,12 @@ async def check_channel_updates(context: ContextTypes.DEFAULT_TYPE):
 
 def run_loader():
     app = ApplicationBuilder().token(LOADER_TOKEN).build()
+    
+    # Регистрация обработчиков
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
-    app.job_queue.run_repeating(check_channel_updates, interval=3600)  # Проверка каждый час
+    
+    # JobQueue требует установки python-telegram-bot[job-queue]
+    app.job_queue.run_repeating(check_channel_updates, interval=3600)
+    
     app.run_polling()
