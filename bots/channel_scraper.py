@@ -10,7 +10,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+SCRAPER_TOKEN = os.getenv("SCRAPER_TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 JSON_PATH = "data/message_ids.json"
 
