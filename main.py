@@ -1,40 +1,77 @@
-import asyncio
-from telegram import Bot
-from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler
-import os
+import logging
 import random
+import sqlite3
+import os
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")  # формат: "-100..."
+from telegram import Update
+from telegram.ext import Application, MessageHandler, filters, CommandHandler, ContextTypes
 
-application: Application = Application.builder().token(BOT_TOKEN).build()
-bot = Bot(BOT_TOKEN)
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+CHANNEL_ID = os.environ["CHANNEL_ID"]
 
-async def get_random_message_id():
-    updates = await bot.get_chat_history(chat_id=CHANNEL_ID, limit=1)
-    if not updates or not updates[-1].message_id:
-        return None
-    last_id = updates[-1].message_id
-    return random.randint(1, last_id)
+DB_FILE = "messages.db"
 
-async def send_random_post(update, context):
-    while True:
-        message_id = await get_random_message_id()
-        if not message_id:
-            await update.message.reply_text("Канал пуст.")
-            return
-        try:
-            await bot.forward_message(chat_id=update.effective_chat.id, from_chat_id=CHANNEL_ID, message_id=message_id)
-            return
-        except:
-            continue  # если сообщение не существует, пробуем другое
+# --- Logging ---
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-async def start(update, context):
-    await update.message.reply_text("Жми /motivate чтобы получить пост.")
 
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CommandHandler("motivate", send_random_post))
+# --- DB Setup ---
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY)''')
+    conn.commit()
+    conn.close()
+
+
+def save_message_id(message_id: int):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("INSERT OR IGNORE INTO messages (id) VALUES (?)", (message_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_random_message_id() -> int | None:
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT id FROM messages ORDER BY RANDOM() LIMIT 1")
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+
+# --- Handlers ---
+async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.channel_post
+    if message and str(message.chat.id) == CHANNEL_ID:
+        save_message_id(message.message_id)
+        logger.info(f"Saved message_id: {message.message_id}")
+
+
+async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message_id = get_random_message_id()
+    if message_id:
+        await context.bot.forward_message(chat_id=update.effective_chat.id,
+                                          from_chat_id=CHANNEL_ID,
+                                          message_id=message_id)
+    else:
+        await update.message.reply_text("Нет сохранённых постов.")
+
+
+# --- Main ---
+async def main():
+    init_db()
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", send_random_post))
+    app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
+
+    logger.info("Bot started")
+    await app.run_polling()
+
 
 if __name__ == "__main__":
-    asyncio.run(application.run_polling())
+    import asyncio
+    asyncio.run(main())
