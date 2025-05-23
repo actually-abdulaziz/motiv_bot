@@ -11,7 +11,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS media (
                 file_id TEXT PRIMARY KEY,
                 type TEXT NOT NULL,
-                url TEXT UNIQUE,
+                url TEXT,
                 message_id INTEGER UNIQUE
             )
         """)
@@ -26,7 +26,7 @@ def save_file_id(file_id: str, file_type: str, url: str = None, message_id: int 
                 (file_id, file_type, url, message_id)
             )
             conn.commit()
-            logger.info(f"Сохранено: {file_id} ({file_type})")
+            logger.info(f"Сохранено: {file_id}")
         except sqlite3.Error as e:
             logger.error(f"Ошибка сохранения: {e}")
 
@@ -38,10 +38,6 @@ def delete_file_id(file_id: str):
 
 def load_random() -> dict:
     with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.execute("""
-            SELECT file_id, type FROM media
-            ORDER BY RANDOM()
-            LIMIT 1
-        """)
+        cursor = conn.execute("SELECT file_id, type FROM media ORDER BY RANDOM() LIMIT 1")
         row = cursor.fetchone()
         return {"file_id": row[0], "type": row[1]} if row else None

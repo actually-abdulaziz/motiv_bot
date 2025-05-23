@@ -3,6 +3,7 @@ import yt_dlp
 import uuid
 import logging
 import asyncio
+import sqlite3
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import (
     ApplicationBuilder,
@@ -10,7 +11,7 @@ from telegram.ext import (
     filters,
     ContextTypes
 )
-from db import init_db, save_file_id
+from db import init_db, save_file_id, delete_file_id
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -96,17 +97,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.error(f"Ошибка удаления {path}: {e}")
 
-async def handle_deleted_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message and update.message.left_chat_member:
-        message_id = update.message.message_id
-        with sqlite3.connect(DB_NAME) as conn:
-            cursor = conn.execute("SELECT file_id FROM media WHERE message_id = ?", (message_id,))
-            if row := cursor.fetchone():
-                delete_file_id(row[0])
-                logger.info(f"Удален контент с message_id: {message_id}")
+async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.channel_post:
+        post = update.channel_post
+        if post.photo:
+            file_id = post.photo[-1].file_id
+            save_file_id(file_id, "photo", "manual_upload", post.message_id)
+            logger.info(f"Ручное сохранение фото: {file_id}")
+        elif post.video:
+            file_id = post.video.file_id
+            save_file_id(file_id, "video", "manual_upload", post.message_id)
+            logger.info(f"Ручное сохранение видео: {file_id}")
+
+async def check_channel_updates(context: ContextTypes.DEFAULT_TYPE):
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.execute("SELECT message_id FROM media")
+        for row in cursor.fetchall():
+            message_id = row[0]
+            try:
+                await context.bot.get_chat_message(CHANNEL_ID, message_id)
+            except Exception as e:
+                logger.info(f"Сообщение {message_id} удалено, очистка базы...")
+                conn.execute("DELETE FROM media WHERE message_id = ?", (message_id,))
+                conn.commit()
 
 def run_loader():
     app = ApplicationBuilder().token(LOADER_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.ChatType.CHANNEL & filters.UpdateType.MESSAGE, handle_deleted_message))
+    app.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
+    app.job_queue.run_repeating(check_channel_updates, interval=3600)  # Проверка каждый час
     app.run_polling()
