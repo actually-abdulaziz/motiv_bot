@@ -21,7 +21,6 @@ JSON_PATH = "data/message_ids.json"
 
 async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        # Проверка существования файла
         if not os.path.exists(JSON_PATH):
             await update.message.reply_text("⚠️ Контент еще не загружен. Попробуйте позже.")
             return
@@ -34,7 +33,6 @@ async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             message_ids = json.loads(raw_data)
 
-        # Выбор случайного сообщения
         random_id = random.choice(message_ids)
         await context.bot.forward_message(
             chat_id=update.message.chat_id,
@@ -49,7 +47,7 @@ def run_bot():
     app = (
         ApplicationBuilder()
         .token(BOT_TOKEN)
-        .concurrent_updates(5)  # Фикс конфликтов getUpdates
+        .concurrent_updates(1)  # Фикс конфликтов
         .build()
     )
     app.add_handler(CommandHandler("start", send_random_post))
