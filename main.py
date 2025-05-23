@@ -49,6 +49,5 @@ async def main():
     logger.info("Bot started")
     await app.run_polling()
 
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+if __name__ == '__main__':
+    main()
