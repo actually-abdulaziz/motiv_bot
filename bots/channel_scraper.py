@@ -19,11 +19,11 @@ async def scrape_messages():
         bot = Bot(token=SCRAPER_TOKEN)
         all_ids = []
         
-        # Собираем все сообщения через get_chat_history
+        # Собираем сообщения через get_chat_history
         async for message in bot.get_chat_history(CHANNEL_ID):
             all_ids.append(message.message_id)
             
-            # Сохраняем каждые 100 сообщений
+            # Сохраняем прогресс каждые 100 сообщений
             if len(all_ids) % 100 == 0:
                 with open(JSON_PATH, "w") as f:
                     json.dump(all_ids, f)
