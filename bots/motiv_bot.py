@@ -53,9 +53,11 @@ async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔥 Системная ошибка!")
 
 def run_bot():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = (
+        ApplicationBuilder()
+        .token(BOT_TOKEN)
+        .concurrent_updates(5)  # Ограничение до 5 потоков
+        .build()
+    )
     app.add_handler(CommandHandler("start", send_random_post))
     app.run_polling()
-
-if __name__ == "__main__":
-    run_bot()
