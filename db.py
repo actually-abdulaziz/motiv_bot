@@ -1,33 +1,25 @@
 import sqlite3
 
-DB_FILE = "posts.db"
+DB_PATH = "messages.db"
 
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            message_id INTEGER UNIQUE
-        )
-    """)
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY)")
     conn.commit()
     conn.close()
 
-def add_message_id(message_id):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    try:
-        c.execute("INSERT INTO posts (message_id) VALUES (?)", (message_id,))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        pass
+def save_message_id(message_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("INSERT INTO messages (id) VALUES (?)", (message_id,))
+    conn.commit()
     conn.close()
 
 def get_all_message_ids():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("SELECT message_id FROM posts")
-    rows = c.fetchall()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM messages")
+    ids = [row[0] for row in cur.fetchall()]
     conn.close()
-    return [row[0] for row in rows]
+    return ids
