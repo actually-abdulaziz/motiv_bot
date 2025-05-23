@@ -16,7 +16,7 @@ JSON_PATH = "data/message_ids.json"
 
 async def scrape_messages():
     try:
-        bot = Bot(token=BOT_TOKEN)
+        bot = Bot(token=SCRAPER_TOKEN)
         all_ids = []
         offset_id = None
 
@@ -44,7 +44,7 @@ async def scrape_messages():
         logger.error(f"🚨 Ошибка: {e}")
 
 def run_scraper():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(SCRAPER_TOKEN).build()
     app.run_polling()
 
 if __name__ == "__main__":
