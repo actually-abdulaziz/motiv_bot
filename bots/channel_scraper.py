@@ -18,27 +18,20 @@ async def scrape_messages():
     try:
         bot = Bot(token=SCRAPER_TOKEN)
         all_ids = []
-        offset_id = None
+        
+        # Собираем все сообщения через get_chat_history
+        async for message in bot.get_chat_history(CHANNEL_ID):
+            all_ids.append(message.message_id)
+            
+            # Сохраняем каждые 100 сообщений
+            if len(all_ids) % 100 == 0:
+                with open(JSON_PATH, "w") as f:
+                    json.dump(all_ids, f)
 
-        while True:
-            # Пагинация по 100 сообщений
-            messages = await bot.get_updates(
-                chat_id=CHANNEL_ID,
-                limit=100,
-                offset=offset_id
-            )
-
-            if not messages:
-                break
-
-            new_ids = [msg.message_id for msg in messages]
-            all_ids.extend(new_ids)
-            offset_id = new_ids[-1] - 1
-
-            # Сохранение данных
-            with open(JSON_PATH, "w") as f:
-                json.dump(all_ids, f)
-
+        # Финальное сохранение
+        with open(JSON_PATH, "w") as f:
+            json.dump(all_ids, f)
+            
         logger.info(f"✅ Собрано {len(all_ids)} сообщений")
     except Exception as e:
         logger.error(f"🚨 Ошибка: {e}")
