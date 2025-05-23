@@ -11,11 +11,3 @@ COPY . .
 
 # Установка Python-зависимостей
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Настройка cron
-RUN echo "0 3 * * * /bin/bash /app/scripts/update_messages.sh" >> /etc/cron.d/motiv-bot
-RUN chmod 0644 /etc/cron.d/motiv-bot
-RUN crontab /etc/cron.d/motiv-bot
-
-# Запуск
-CMD ["sh", "-c", "cron && python bots/motiv_bot.py"]
