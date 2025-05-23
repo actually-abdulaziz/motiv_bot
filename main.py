@@ -51,7 +51,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
 async def main():
-    await init_db()
+    init_db()
 
     app = ApplicationBuilder().token(TOKEN).build()
 
