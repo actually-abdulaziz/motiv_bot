@@ -1,53 +1,76 @@
+import os
 import logging
 import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from db import init_db, get_all_message_ids
+
+TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = os.getenv("CHANNEL_ID")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-CHANNEL_ID = os.getenv("CHANNEL_ID")  # example: -1002576049448
-
+# Команда /start — только приветствие и кнопка
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("⚡️Random Motivation⚡️", callback_data="random_post")]
+        [InlineKeyboardButton("⚡️Получить мотивацию⚡️", callback_data="get_random")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Добро пожаловать! Жми на кнопку для мотивации:", reply_markup=reply_markup)
-
-async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    message_ids = get_all_message_ids()
-    if not message_ids:
-        await query.edit_message_text("Нет доступных постов.")
-        return
-
-    message_id = random.choice(message_ids)
-    await context.bot.copy_message(
-        chat_id=query.message.chat_id,
-        from_chat_id=CHANNEL_ID,
-        message_id=message_id,
+    await update.message.reply_text(
+        "Добро пожаловать! Нажми кнопку ниже, чтобы получить мотивацию:",
+        reply_markup=reply_markup,
     )
 
-async def random_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("⚡️Random Motivation⚡️", callback_data="random_post")]
+# Команда /random — пересылает случайное сообщение
+async def random_motivation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message_ids = get_all_message_ids()
+    if not message_ids:
+        await update.message.reply_text("Нет доступных сообщений.")
+        return
+    msg_id = random.choice(message_ids)
+    await context.bot.copy_message(
+        chat_id=update.effective_chat.id,
+        from_chat_id=CHANNEL_ID,
+        message_id=msg_id,
+    )
+
+# Кнопка из InlineKeyboard
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "get_random":
+        message_ids = get_all_message_ids()
+        if not message_ids:
+            await query.edit_message_text("Нет доступных сообщений.")
+            return
+        msg_id = random.choice(message_ids)
+        await context.bot.copy_message(
+            chat_id=query.message.chat_id,
+            from_chat_id=CHANNEL_ID,
+            message_id=msg_id,
+        )
+
+async def set_bot_commands(application):
+    commands = [
+        BotCommand("start", "Начать"),
+        BotCommand("random", "⚡️Random Motivation⚡️"),
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Жми на кнопку для мотивации:", reply_markup=reply_markup)
+    await application.bot.set_my_commands(commands)
 
 async def main():
     init_db()
-    app = Application.builder().token(os.getenv("BOT_TOKEN")).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("random", random_command))
-    app.add_handler(CallbackQueryHandler(send_random_post, pattern="^random_post$"))
-    logger.info("Bot started")
-    await app.run_polling()
+    app = ApplicationBuilder().token(TOKEN).build()
 
-if __name__ == '__main__':
-    main()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("random", random_motivation))
+    app.add_handler(
+        telegram.ext.CallbackQueryHandler(handle_callback)
+    )
+
+    await set_bot_commands(app)
+    app.run_polling()
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
