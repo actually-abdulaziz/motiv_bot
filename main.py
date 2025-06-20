@@ -2,6 +2,7 @@ import logging
 import random
 import sqlite3
 import os
+import asyncio
 
 from telegram import Update, BotCommand, ReplyKeyboardMarkup
 from telegram.ext import (
@@ -75,8 +76,8 @@ async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Нет сохранённых постов.")
 
 
-# --- Main ---
-def main():
+# --- Async main ---
+async def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -84,15 +85,24 @@ def main():
     app.add_handler(CommandHandler("random", send_random_post))
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
-    async def setup():
-        await app.bot.set_my_commands([
-            BotCommand("random", "⚡️Random Motivation⚡️")
-        ])
-        logger.info("Bot started")
-        await app.run_polling()
+    # Установка команды в меню Telegram
+    await app.bot.set_my_commands([
+        BotCommand("random", "⚡️Random Motivation⚡️")
+    ])
 
-    # запускаем async-код правильно
-    app.run_async(setup)
+    logger.info("Bot started")
+    await app.run_polling()
 
+
+# --- Entry ---
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except RuntimeError as e:
+        # Railway/Fly.io иногда уже запускают event loop — fallback
+        if "event loop is already running" in str(e):
+            import nest_asyncio
+            nest_asyncio.apply()
+            asyncio.get_event_loop().run_until_complete(main())
+        else:
+            raise
