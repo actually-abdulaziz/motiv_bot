@@ -123,7 +123,7 @@ def main():
     app.run_webhook(
         listen="0.0.0.0",
         port=8080,
-        webhook_url=f"https://{os.environ['RENDER_EXTERNAL_URL']}"
+        webhook_url=f"https://motiv-bot.onrender.com"
     )
 
 if __name__ == "__main__":
