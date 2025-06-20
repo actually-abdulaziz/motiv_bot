@@ -96,9 +96,10 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
-    async def on_startup(app_):
-        app_.web_app.router.add_get("/ping", ping_handler)
-        app_.web_app.router.add_head("/ping", ping_handler)
+    # создаём aiohttp-приложение и добавляем маршрут /ping
+    web_app = web.Application()
+    web_app.router.add_get("/ping", ping_handler)
+    web_app.router.add_head("/ping", ping_handler)
 
     logger.info("Bot started")
 
@@ -106,6 +107,7 @@ def main():
         listen="0.0.0.0",
         port=8080,
         webhook_url="https://motiv-bot.onrender.com/webhook",
+        web_app=web_app,
     )
 
 if __name__ == "__main__":
