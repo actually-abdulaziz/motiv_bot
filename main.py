@@ -2,6 +2,8 @@ import logging
 import random
 import sqlite3
 import os
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -13,6 +15,7 @@ from telegram.ext import (
     CallbackQueryHandler
 )
 
+# --- ENV ---
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = os.environ["CHANNEL_ID"]
 DB_FILE = "messages.db"
@@ -48,7 +51,7 @@ def get_random_message_id() -> int | None:
     return row[0] if row else None
 
 
-# --- Handlers ---
+# --- Telegram Handlers ---
 async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.channel_post
     if message and str(message.chat.id) == CHANNEL_ID:
@@ -90,8 +93,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("Нет сохранённых постов.")
 
 
+# --- Ping Server ---
+class PingHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+
+def run_ping_server():
+    httpd = HTTPServer(("", 8080), PingHandler)
+    httpd.serve_forever()
+
+
 # --- Main ---
 def main():
+    Thread(target=run_ping_server, daemon=True).start()  # запустить http-сервер
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
