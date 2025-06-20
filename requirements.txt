@@ -1,3 +1,1 @@
-python-telegram-bot==20.6
-httpx
-nest_asyncio
+python-telegram-bot==20.7
