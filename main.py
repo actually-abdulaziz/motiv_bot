@@ -99,7 +99,6 @@ def main():
     # создаём aiohttp-приложение и добавляем маршрут /ping
     web_app = web.Application()
     web_app.router.add_get("/ping", ping_handler)
-    web_app.router.add_head("/ping", ping_handler)
 
     logger.info("Bot started")
 
