@@ -105,8 +105,7 @@ def main():
     app.run_webhook(
         listen="0.0.0.0",
         port=8080,
-        webhook_url="https://motiv-bot.onrender.com/webhook",
-        web_app=web_app,
+        webhook_url="https://motiv-bot.onrender.com/webhook"
     )
 
 if __name__ == "__main__":
