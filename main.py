@@ -2,13 +2,14 @@ import logging
 import random
 import sqlite3
 import os
-from telegram import Update, BotCommand
+
+from telegram import Update, BotCommand, ReplyKeyboardMarkup
 from telegram.ext import (
     Application,
     MessageHandler,
+    filters,
     CommandHandler,
     ContextTypes,
-    filters,
 )
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
@@ -20,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# --- DB ---
+# --- DB Setup ---
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -37,21 +38,13 @@ def save_message_id(message_id: int):
     conn.close()
 
 
-def get_all_message_ids():
+def get_random_message_id() -> int | None:
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT id FROM messages")
-    rows = c.fetchall()
+    c.execute("SELECT id FROM messages ORDER BY RANDOM() LIMIT 1")
+    row = c.fetchone()
     conn.close()
-    return [row[0] for row in rows]
-
-
-def delete_message_id(message_id: int):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("DELETE FROM messages WHERE id = ?", (message_id,))
-    conn.commit()
-    conn.close()
+    return row[0] if row else None
 
 
 # --- Handlers ---
@@ -62,53 +55,43 @@ async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.info(f"Saved message_id: {message.message_id}")
 
 
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [[
+        "/random ⚡️Random Motivation⚡️"
+    ]]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text("Добро пожаловать! Нажмите кнопку ниже для мотивации:", reply_markup=reply_markup)
+
+
 async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message_ids = get_all_message_ids()
-    if not message_ids:
+    message_id = get_random_message_id()
+    if message_id:
+        await context.bot.forward_message(
+            chat_id=update.effective_chat.id,
+            from_chat_id=CHANNEL_ID,
+            message_id=message_id
+        )
+    else:
         await update.message.reply_text("Нет сохранённых постов.")
-        return
-
-    while message_ids:
-        message_id = random.choice(message_ids)
-        try:
-            await context.bot.forward_message(
-                chat_id=update.effective_chat.id,
-                from_chat_id=CHANNEL_ID,
-                message_id=message_id,
-            )
-            return
-        except Exception as e:
-            logger.warning(f"Ошибка при пересылке {message_id}: {e}")
-            delete_message_id(message_id)
-            message_ids.remove(message_id)
-
-    await update.message.reply_text("Все сохранённые сообщения недоступны.")
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Бот активен. Жми /random для мотивации ⚡️"
-    )
 
 
 # --- Main ---
-def main():
+async def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("random", send_random_post))
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
-    # Настроим команду в меню Telegram
     await app.bot.set_my_commands([
-    	BotCommand("random", "⚡️Random Motivation⚡️")
+        BotCommand("random", "⚡️Random Motivation⚡️")
     ])
 
-
     logger.info("Bot started")
-    app.run_polling()
+    await app.run_polling()
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
