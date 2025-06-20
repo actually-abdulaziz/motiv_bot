@@ -9,7 +9,8 @@ from telegram.ext import (
     filters,
     CommandHandler,
     ContextTypes,
-    CallbackQueryHandler
+    CallbackQueryHandler,
+    AIORateLimiter
 )
 from aiohttp import web
 
@@ -86,26 +87,40 @@ async def ping_handler(request):
     return web.Response(text="OK")
 
 # --- Main ---
-def main():
+async def main():
     init_db()
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    # Создание telegram-приложения
+    application = Application.builder().token(BOT_TOKEN).rate_limiter(AIORateLimiter()).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("random", send_random_post))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("random", send_random_post))
+    application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
-    # Регистрируем ping-роут до запуска
-    app.web_app.router.add_get("/ping", ping_handler)
+    # Создание aiohttp-приложения
+    aio_app = web.Application()
+    aio_app.router.add_get("/ping", ping_handler)
+    aio_app.router.add_post("/webhook", application.webhook_handler())
 
-    logger.info("Bot started")
+    # Запуск Telegram-бота в режиме webhook
+    webhook_url = "https://motiv-bot.onrender.com/webhook"
+    await application.initialize()
+    await application.start()
+    await application.bot.set_webhook(webhook_url)
+    logger.info("Bot started via webhook")
 
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=8080,
-        webhook_url="https://motiv-bot.onrender.com/webhook"
-    )
+    # Запуск aiohttp-сервера
+    runner = web.AppRunner(aio_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", 8080)
+    await site.start()
+
+    # Бесконечный цикл
+    import asyncio
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
