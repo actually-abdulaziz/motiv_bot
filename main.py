@@ -101,9 +101,10 @@ def main():
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
     # Настроим команду в меню Telegram
-    app.bot.set_my_commands([
-        BotCommand("random", "⚡️Random Motivation⚡️")
+    await app.bot.set_my_commands([
+    	BotCommand("random", "⚡️Random Motivation⚡️")
     ])
+
 
     logger.info("Bot started")
     app.run_polling()
