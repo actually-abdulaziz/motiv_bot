@@ -24,7 +24,6 @@ DB_FILE = "messages.db"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 # --- DB Setup ---
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -33,14 +32,12 @@ def init_db():
     conn.commit()
     conn.close()
 
-
 def save_message_id(message_id: int):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("INSERT OR IGNORE INTO messages (id) VALUES (?)", (message_id,))
     conn.commit()
     conn.close()
-
 
 def get_random_message_id() -> int | None:
     conn = sqlite3.connect(DB_FILE)
@@ -50,7 +47,6 @@ def get_random_message_id() -> int | None:
     conn.close()
     return row[0] if row else None
 
-
 # --- Telegram Handlers ---
 async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.channel_post
@@ -58,17 +54,13 @@ async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE
         save_message_id(message.message_id)
         logger.info(f"Saved message_id: {message.message_id}")
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("⚡️Random Motivation⚡️", callback_data="get_random")]
-    ]
+    keyboard = [[InlineKeyboardButton("⚡️Random Motivation⚡️", callback_data="get_random")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "Добро пожаловать! Нажми кнопку ниже, чтобы получить мотивацию:",
         reply_markup=reply_markup
     )
-
 
 async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_id = get_random_message_id()
@@ -78,7 +70,6 @@ async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                           message_id=message_id)
     else:
         await update.message.reply_text("Нет сохранённых постов.")
-
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -92,7 +83,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.edit_message_text("Нет сохранённых постов.")
 
-
 # --- Ping Server ---
 class PingHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -100,11 +90,9 @@ class PingHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"OK")
 
-
 def run_ping_server():
-    httpd = HTTPServer(("", 8080), PingHandler)
+    httpd = HTTPServer(("", 8081), PingHandler)
     httpd.serve_forever()
-
 
 # --- Main ---
 def main():
@@ -123,7 +111,7 @@ def main():
     app.run_webhook(
         listen="0.0.0.0",
         port=8080,
-        webhook_url=f"https://motiv-bot.onrender.com"
+        webhook_url="https://motiv-bot.onrender.com"
     )
 
 if __name__ == "__main__":
