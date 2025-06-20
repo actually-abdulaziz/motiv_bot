@@ -108,8 +108,9 @@ def run_ping_server():
 
 # --- Main ---
 def main():
-    Thread(target=run_ping_server, daemon=True).start()  # запустить http-сервер
+    Thread(target=run_ping_server, daemon=True).start()
     init_db()
+
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -118,8 +119,12 @@ def main():
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
     logger.info("Bot started")
-    app.run_polling()
 
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=8080,
+        webhook_url=f"https://{os.environ['RENDER_EXTERNAL_URL']}"
+    )
 
 if __name__ == "__main__":
     main()
