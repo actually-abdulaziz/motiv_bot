@@ -96,9 +96,10 @@ async def main():
 
 # --- Entry ---
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except RuntimeError as e:
+    import nest_asyncio
+    nest_asyncio.apply()
+    asyncio.get_event_loop().run_until_complete(main())
+
         # Railway/Fly.io иногда уже запускают event loop — fallback
         if "event loop is already running" in str(e):
             import nest_asyncio
