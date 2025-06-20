@@ -4,7 +4,14 @@ import sqlite3
 import os
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, MessageHandler, filters, CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram.ext import (
+    Application,
+    MessageHandler,
+    filters,
+    CommandHandler,
+    ContextTypes,
+    CallbackQueryHandler
+)
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = os.environ["CHANNEL_ID"]
