@@ -76,7 +76,7 @@ async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # --- Main ---
-async def main():
+def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -84,14 +84,15 @@ async def main():
     app.add_handler(CommandHandler("random", send_random_post))
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
-    await app.bot.set_my_commands([
-        BotCommand("random", "⚡️Random Motivation⚡️")
-    ])
+    async def setup():
+        await app.bot.set_my_commands([
+            BotCommand("random", "⚡️Random Motivation⚡️")
+        ])
+        logger.info("Bot started")
+        await app.run_polling()
 
-    logger.info("Bot started")
-    await app.run_polling()
-
+    # запускаем async-код правильно
+    app.run_async(setup)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
