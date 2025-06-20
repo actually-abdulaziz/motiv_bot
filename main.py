@@ -2,19 +2,10 @@ import logging
 import random
 import sqlite3
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application,
-    MessageHandler,
-    filters,
-    CommandHandler,
-    ContextTypes,
-    CallbackQueryHandler,
-    AIORateLimiter
-)
-from aiohttp import web
 
-# --- ENV ---
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, MessageHandler, filters, CommandHandler, ContextTypes, CallbackQueryHandler
+
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = os.environ["CHANNEL_ID"]
 DB_FILE = "messages.db"
@@ -22,6 +13,7 @@ DB_FILE = "messages.db"
 # --- Logging ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 # --- DB Setup ---
 def init_db():
@@ -31,12 +23,14 @@ def init_db():
     conn.commit()
     conn.close()
 
+
 def save_message_id(message_id: int):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("INSERT OR IGNORE INTO messages (id) VALUES (?)", (message_id,))
     conn.commit()
     conn.close()
+
 
 def get_random_message_id() -> int | None:
     conn = sqlite3.connect(DB_FILE)
@@ -46,20 +40,25 @@ def get_random_message_id() -> int | None:
     conn.close()
     return row[0] if row else None
 
-# --- Telegram Handlers ---
+
+# --- Handlers ---
 async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.channel_post
     if message and str(message.chat.id) == CHANNEL_ID:
         save_message_id(message.message_id)
         logger.info(f"Saved message_id: {message.message_id}")
 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("⚡️Random Motivation⚡️", callback_data="get_random")]]
+    keyboard = [
+        [InlineKeyboardButton("⚡️Random Motivation⚡️", callback_data="get_random")]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "Добро пожаловать! Нажми кнопку ниже, чтобы получить мотивацию:",
         reply_markup=reply_markup
     )
+
 
 async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_id = get_random_message_id()
@@ -69,6 +68,7 @@ async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                           message_id=message_id)
     else:
         await update.message.reply_text("Нет сохранённых постов.")
+
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -82,45 +82,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.edit_message_text("Нет сохранённых постов.")
 
-# --- Ping Handler ---
-async def ping_handler(request):
-    return web.Response(text="OK")
 
 # --- Main ---
-async def main():
+def main():
     init_db()
+    app = Application.builder().token(BOT_TOKEN).build()
 
-    # Создание telegram-приложения
-    application = Application.builder().token(BOT_TOKEN).rate_limiter(AIORateLimiter()).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("random", send_random_post))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("random", send_random_post))
-    application.add_handler(CallbackQueryHandler(button_handler))
-    application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
+    logger.info("Bot started")
+    app.run_polling()
 
-    # Создание aiohttp-приложения
-    aio_app = web.Application()
-    aio_app.router.add_get("/ping", ping_handler)
-    aio_app.router.add_post("/webhook", application.webhook_handler())
-
-    # Запуск Telegram-бота в режиме webhook
-    webhook_url = "https://motiv-bot.onrender.com/webhook"
-    await application.initialize()
-    await application.start()
-    await application.bot.set_webhook(webhook_url)
-    logger.info("Bot started via webhook")
-
-    # Запуск aiohttp-сервера
-    runner = web.AppRunner(aio_app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8080)
-    await site.start()
-
-    # Бесконечный цикл
-    import asyncio
-    while True:
-        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
