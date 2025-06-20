@@ -2,9 +2,8 @@ import logging
 import random
 import sqlite3
 import os
-import asyncio
 
-from telegram import Update, BotCommand, ReplyKeyboardMarkup
+from telegram import Update, BotCommand
 from telegram.ext import (
     Application,
     MessageHandler,
@@ -15,12 +14,12 @@ from telegram.ext import (
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = os.environ["CHANNEL_ID"]
+
 DB_FILE = "messages.db"
 
 # --- Logging ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 # --- DB Setup ---
 def init_db():
@@ -30,14 +29,12 @@ def init_db():
     conn.commit()
     conn.close()
 
-
 def save_message_id(message_id: int):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("INSERT OR IGNORE INTO messages (id) VALUES (?)", (message_id,))
     conn.commit()
     conn.close()
-
 
 def get_random_message_id() -> int | None:
     conn = sqlite3.connect(DB_FILE)
@@ -47,22 +44,12 @@ def get_random_message_id() -> int | None:
     conn.close()
     return row[0] if row else None
 
-
 # --- Handlers ---
 async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.channel_post
     if message and str(message.chat.id) == CHANNEL_ID:
         save_message_id(message.message_id)
         logger.info(f"Saved message_id: {message.message_id}")
-
-
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[
-        "/random ⚡️Random Motivation⚡️"
-    ]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text("Добро пожаловать! Нажмите кнопку ниже для мотивации:", reply_markup=reply_markup)
-
 
 async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_id = get_random_message_id()
@@ -75,17 +62,20 @@ async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Нет сохранённых постов.")
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Добро пожаловать! Используй /random для мотивашек ⚡️")
 
-# --- Async main ---
+# --- Main ---
 async def main():
     init_db()
+
     app = Application.builder().token(BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("random", send_random_post))
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
-    # Установка команды в меню Telegram
+    # Установка команды в меню бота
     await app.bot.set_my_commands([
         BotCommand("random", "⚡️Random Motivation⚡️")
     ])
@@ -93,17 +83,10 @@ async def main():
     logger.info("Bot started")
     await app.run_polling()
 
-
-# --- Entry ---
+# --- Run with loop fix ---
 if __name__ == "__main__":
     import nest_asyncio
+    import asyncio
+
     nest_asyncio.apply()
     asyncio.get_event_loop().run_until_complete(main())
-
-        # Railway/Fly.io иногда уже запускают event loop — fallback
-        if "event loop is already running" in str(e):
-            import nest_asyncio
-            nest_asyncio.apply()
-            asyncio.get_event_loop().run_until_complete(main())
-        else:
-            raise
