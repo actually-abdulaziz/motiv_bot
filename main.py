@@ -1,31 +1,31 @@
 import logging
+import os
 import random
 import sqlite3
-import os
 
-from telegram import Update, BotCommand
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
-    MessageHandler,
-    filters,
     CommandHandler,
+    CallbackQueryHandler,
+    MessageHandler,
     ContextTypes,
+    filters,
 )
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = os.environ["CHANNEL_ID"]
-
 DB_FILE = "messages.db"
 
 # --- Logging ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- DB Setup ---
+# --- DB ---
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY)''')
+    c.execute("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY)")
     conn.commit()
     conn.close()
 
@@ -36,7 +36,7 @@ def save_message_id(message_id: int):
     conn.commit()
     conn.close()
 
-def get_random_message_id() -> int | None:
+def get_random_message_id():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("SELECT id FROM messages ORDER BY RANDOM() LIMIT 1")
@@ -46,12 +46,20 @@ def get_random_message_id() -> int | None:
 
 # --- Handlers ---
 async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.channel_post
-    if message and str(message.chat.id) == CHANNEL_ID:
-        save_message_id(message.message_id)
-        logger.info(f"Saved message_id: {message.message_id}")
+    msg = update.channel_post
+    if msg and str(msg.chat.id) == CHANNEL_ID:
+        save_message_id(msg.message_id)
+        logger.info(f"Saved message_id: {msg.message_id}")
 
-async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [[InlineKeyboardButton("⚡️Random Motivation⚡️", callback_data="get_random")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "Добро пожаловать! Нажми кнопку ниже, чтобы получить мотивацию:",
+        reply_markup=reply_markup
+    )
+
+async def send_random(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_id = get_random_message_id()
     if message_id:
         await context.bot.forward_message(
@@ -62,8 +70,19 @@ async def send_random_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Нет сохранённых постов.")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Добро пожаловать! Используй /random для мотивашек ⚡️")
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "get_random":
+        message_id = get_random_message_id()
+        if message_id:
+            await context.bot.forward_message(
+                chat_id=query.message.chat.id,
+                from_chat_id=CHANNEL_ID,
+                message_id=message_id
+            )
+        else:
+            await query.message.reply_text("Нет сохранённых постов.")
 
 # --- Main ---
 async def main():
@@ -72,21 +91,26 @@ async def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("random", send_random_post))
+    app.add_handler(CommandHandler("random", send_random))
+    app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
-    # Установка команды в меню бота
     await app.bot.set_my_commands([
-        BotCommand("random", "⚡️Random Motivation⚡️")
+        ("start", "Начало"),
+        ("random", "⚡️Random Motivation⚡️")
     ])
 
     logger.info("Bot started")
     await app.run_polling()
 
-# --- Run with loop fix ---
 if __name__ == "__main__":
-    import nest_asyncio
     import asyncio
-
-    nest_asyncio.apply()
-    asyncio.get_event_loop().run_until_complete(main())
+    try:
+        asyncio.run(main())
+    except RuntimeError as e:
+        if "event loop is already running" in str(e):
+            import nest_asyncio
+            nest_asyncio.apply()
+            asyncio.get_event_loop().run_until_complete(main())
+        else:
+            raise
