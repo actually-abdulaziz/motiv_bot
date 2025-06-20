@@ -2,9 +2,6 @@ import logging
 import random
 import sqlite3
 import os
-from threading import Thread
-from http.server import HTTPServer, BaseHTTPRequestHandler
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -14,6 +11,7 @@ from telegram.ext import (
     ContextTypes,
     CallbackQueryHandler
 )
+from aiohttp import web
 
 # --- ENV ---
 BOT_TOKEN = os.environ["BOT_TOKEN"]
@@ -83,24 +81,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.edit_message_text("Нет сохранённых постов.")
 
-# --- Ping Server ---
-class PingHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"OK")
-
-    def do_HEAD(self):
-        self.send_response(200)
-        self.end_headers()
-
-def run_ping_server():
-    httpd = HTTPServer(("", 8081), PingHandler)
-    httpd.serve_forever()
+# --- Ping Handler ---
+async def ping_handler(request):
+    return web.Response(text="OK")
 
 # --- Main ---
 def main():
-    Thread(target=run_ping_server, daemon=True).start()
     init_db()
 
     app = Application.builder().token(BOT_TOKEN).build()
@@ -110,12 +96,18 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post))
 
+    async def on_startup(app_):
+        app_.web_app.router.add_get("/ping", ping_handler)
+        app_.web_app.router.add_head("/ping", ping_handler)
+
     logger.info("Bot started")
 
     app.run_webhook(
         listen="0.0.0.0",
         port=8080,
-        webhook_url="https://motiv-bot.onrender.com"
+        path="/webhook",
+        webhook_url="https://motiv-bot.onrender.com/webhook",
+        on_startup=on_startup
     )
 
 if __name__ == "__main__":
