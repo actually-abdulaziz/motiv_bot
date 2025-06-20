@@ -105,7 +105,6 @@ def main():
     app.run_webhook(
         listen="0.0.0.0",
         port=8080,
-        path="/webhook",
         webhook_url="https://motiv-bot.onrender.com/webhook",
         on_startup=on_startup
     )
